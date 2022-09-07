@@ -1,0 +1,42 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "testmap.tmx",
+    "expandedProjectPaths": [
+        "SERENE_VILLAGE_REVAMPED",
+        ".",
+        "SERENE_VILLAGE_REVAMPED/RPG_MAKER_XP"
+    ],
+    "fileStates": {
+        "Serene_Village_32x32.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "testmap.tmx": {
+            "scale": 0.88,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 475,
+                "y": 478.97727272727275
+            }
+        }
+    },
+    "last.imagePath": "C:/Users/lawre/workspace/testmap/SERENE_VILLAGE_REVAMPED",
+    "map.height": 30,
+    "map.lastUsedFormat": "tmx",
+    "map.layerDataFormat": null,
+    "openFiles": [
+        "testmap.tmx",
+        "Serene_Village_32x32.tsx"
+    ],
+    "project": "testmap.tiled-project",
+    "recentFiles": [
+        "Serene_Village_32x32.tsx",
+        "testmap.tmx"
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.transparentColor": "#000000",
+    "tileset.useTransparentColor": true
+}
