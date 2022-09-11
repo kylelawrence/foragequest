@@ -1,0 +1,48 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "testmap.tmx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "": {
+            "scaleInEditor": 1
+        },
+        "testmap.tmx": {
+            "expandedGroupLayers": [
+                10,
+                6,
+                11
+            ],
+            "scale": 0.8807291666666667,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 69.82850384387939,
+                "y": 459.2785334121821
+            }
+        },
+        "testmap.tmx#island": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        }
+    },
+    "last.exportedFilePath": "//wsl.localhost/Ubuntu/home/klaw/workspace/foragequest/public/assets",
+    "last.imagePath": "//wsl.localhost/Ubuntu/home/klaw/workspace/foragequest/public/assets",
+    "map.height": 30,
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "tmx",
+    "openFiles": [
+        "testmap.tmx"
+    ],
+    "project": "testmap.tiled-project",
+    "property.type": "bool",
+    "recentFiles": [
+        "testmap.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.transparentColor": "#000000",
+    "tileset.useTransparentColor": true
+}
