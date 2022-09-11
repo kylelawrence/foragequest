@@ -12,8 +12,12 @@ export default new Phaser.Game({
 			gravity: { y: 0 },
 		},
 	},
+	input: {
+		gamepad: true,
+	},
 	scene: [Preloader, Game],
 	scale: {
 		zoom: 1.4,
 	},
+	parent: 'app',
 });
