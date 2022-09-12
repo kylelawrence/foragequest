@@ -98,5 +98,6 @@ Then:
 
 -   [Phaser 3](https://newdocs.phaser.io/docs/3.55.2)
 -   [Typescript](https://www.typescriptlang.org/docs/)
+-   [Yarn](https://yarnpkg.com/getting-started)
 -   [Vite](https://vitejs.dev/guide/)
 -   [GitHub](https://skills.github.com/)
