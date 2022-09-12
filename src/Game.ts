@@ -3,9 +3,8 @@ const stickDeadZone = 0.2;
 
 export default class Game extends Phaser.Scene {
 	private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-	private wasd!: Phaser.Types.Input.Keyboard.KeyComboConfig;
 	private character!: Phaser.Physics.Arcade.Sprite[];
-	private charDirectionRight: boolean;
+	private charDirectionRight: boolean; // Currently facing right?
 
 	constructor() {
 		super('game');
@@ -14,7 +13,6 @@ export default class Game extends Phaser.Scene {
 
 	preload() {
 		this.cursors = this.input.keyboard.createCursorKeys();
-		this.wasd = this.input.keyboard.createCombo('w,a,s,d');
 	}
 
 	create() {
@@ -90,11 +88,14 @@ export default class Game extends Phaser.Scene {
 			return;
 		}
 
+		// Input readings indexes
 		const left = 0;
 		const right = 1;
 		const up = 2;
 		const down = 3;
 		const shift = 4;
+
+		// Arrow keys
 		const keysDown = [
 			this.cursors.left?.isDown,
 			this.cursors.right?.isDown,
@@ -103,8 +104,8 @@ export default class Game extends Phaser.Scene {
 			this.cursors.shift?.isDown,
 		];
 
+		// Gamepad
 		const padDirections = [false, false, false, false, false];
-
 		if (this.input.gamepad.total) {
 			const pad = this.input.gamepad.gamepads.find((pad) => !!pad);
 			if (pad) {
@@ -116,10 +117,15 @@ export default class Game extends Phaser.Scene {
 			}
 		}
 
+		// Start with zero velocity
 		let xVelocity = 0;
 		let yVelocity = 0;
 
-		const speed = keysDown[shift] || padDirections[shift] ? 150 : 100;
+		// If were in a hurry, run 50% faster
+		const hurry = keysDown[shift] || padDirections[shift];
+		const speed = hurry ? 150 : 100;
+
+		// Left/right movement
 		if (keysDown[left] || padDirections[left]) {
 			xVelocity = -speed;
 			this.charDirectionRight = false;
@@ -128,6 +134,7 @@ export default class Game extends Phaser.Scene {
 			this.charDirectionRight = true;
 		}
 
+		// Up/down movement
 		if (keysDown[up] || padDirections[up]) {
 			yVelocity = -speed;
 		} else if (keysDown[down] || padDirections[down]) {
@@ -140,10 +147,10 @@ export default class Game extends Phaser.Scene {
 			yVelocity *= 0.7;
 		}
 
-		const hurry = keysDown[shift] || padDirections[shift];
-
+		// If we're moving
 		const direction = this.charDirectionRight ? 'right' : 'left';
 		if (xVelocity !== 0 || yVelocity !== 0) {
+			// Play the correct walking animation
 			this.character.forEach((part) => {
 				const currentFrame = part.anims.currentFrame.index;
 				part.anims.play(
@@ -155,11 +162,13 @@ export default class Game extends Phaser.Scene {
 				);
 			});
 		} else {
+			// Otherwise reset to standing the direction we were moving
 			this.character.forEach((part) => {
 				part.anims.play(`stand-${direction}`, true);
 			});
 		}
 
+		// Set the velocity determined above
 		this.character.forEach((part) => {
 			part.setVelocity(xVelocity, yVelocity);
 		});
