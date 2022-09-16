@@ -9,21 +9,25 @@
     ],
     "fileStates": {
         "": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "testmap.tmx": {
             "expandedGroupLayers": [
-                15,
+                6,
                 11,
                 10,
-                6
+                15
             ],
             "scale": 0.8807291666666667,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 367.87699586043766,
-                "y": 458.1431105854524
+                "x": 491.07037256061494,
+                "y": 452.4659964518037
             }
+        },
+        "testmap.tmx#Serene_Village_32x32": {
+            "scaleInDock": 1
         },
         "testmap.tmx#island": {
             "scaleInDock": 1,
@@ -35,6 +39,7 @@
     "map.height": 30,
     "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
     "map.lastUsedFormat": "tmx",
+    "mapScene.enableWorlds": true,
     "openFiles": [
         "testmap.tmx"
     ],
