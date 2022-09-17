@@ -1,13 +1,21 @@
 const output = document.getElementById('gamepad')!;
 const stickDeadZone = 0.2;
 
-function pos(i: number) {
+function gridPos(i: number) {
 	return i * 32 + 16;
 }
 
+// Input readings indexes
+const left = 0;
+const right = 1;
+const up = 2;
+const down = 3;
+const shift = 4;
+const space = 5;
+
 export default class Game extends Phaser.Scene {
 	private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-	private character!: Phaser.Physics.Arcade.Sprite[];
+	private character!: Phaser.Physics.Arcade.Group;
 	private charDirectionRight: boolean; // Currently facing right?
 	private activeForagable: Phaser.Types.Physics.Arcade.GameObjectWithBody | null = null;
 
@@ -20,8 +28,8 @@ export default class Game extends Phaser.Scene {
 		this.cursors = this.input.keyboard.createCursorKeys();
 	}
 
-	collideForagable: ArcadePhysicsCallback = (_, foragable) => {
-		this.activeForagable = foragable;
+	collideForagable: ArcadePhysicsCallback = (a, b) => {
+		this.activeForagable = a.name.startsWith('fora') ? a : b;
 	};
 
 	create() {
@@ -42,85 +50,81 @@ export default class Game extends Phaser.Scene {
 		});
 
 		const foragables = [
-			this.physics.add.sprite(pos(7), pos(4), 'forage', 0),
-			this.physics.add.sprite(pos(17), pos(1), 'forage', 1),
-			this.physics.add.sprite(pos(1), pos(18), 'forage', 2),
-			this.physics.add.sprite(pos(15), pos(17), 'forage', 3),
+			this.physics.add.sprite(gridPos(7), gridPos(4), 'forage', 0),
+			this.physics.add.sprite(gridPos(17), gridPos(1), 'forage', 1),
+			this.physics.add.sprite(gridPos(1), gridPos(18), 'forage', 2),
+			this.physics.add.sprite(gridPos(15), gridPos(17), 'forage', 3),
 		];
-		foragables.forEach((f) => {
-			f.setImmovable(true);
-			f.setScale(2);
+		foragables.forEach((sprite, i) => {
+			sprite.setName(`foragable-${i}`);
+			sprite.setImmovable(true);
+			sprite.setScale(2);
 		});
 
 		// Create character from spritesheet
 		const charParts = ['char', 'hair', 'shirt', 'pants', 'shoes'];
-		this.character = charParts.map((part) => {
-			const sprite = this.physics.add.sprite(
-				256 - 16,
-				256 - 16,
-				'char',
-				`${part}-walk-right-1`
-			);
-			sprite.scale = 2;
+		this.character = this.physics.add.group(
+			charParts.map((part) => {
+				const sprite = this.physics.add.sprite(
+					gridPos(7),
+					gridPos(7),
+					'char',
+					`${part}-walk-right-1`
+				);
+				sprite.setName(`char-${part}`);
+				sprite.setScale(2);
 
-			// Make animations for each direction
-			['right', 'left'].forEach((direction) => {
-				// Standing still
-				sprite.anims.create({
-					key: `stand-${direction}`,
-					frames: [{ key: 'char', frame: `${part}-walk-${direction}-1` }],
-				});
-
-				// Walk and run
-				[
-					{ prefix: 'walk', rate: 10 },
-					{ prefix: 'run', rate: 15 },
-				].forEach(({ prefix, rate }) => {
+				// Make animations for each direction
+				['right', 'left'].forEach((direction) => {
+					// Standing still
 					sprite.anims.create({
-						key: `${prefix}-${direction}`,
-						repeat: -1,
-						frameRate: rate,
-						frames: this.anims.generateFrameNames('char', {
-							start: 1,
-							end: 8,
-							prefix: `${part}-walk-${direction}-`,
-						}),
+						key: `stand-${direction}`,
+						frames: [{ key: 'char', frame: `${part}-walk-${direction}-1` }],
+					});
+
+					// Walk and run
+					[
+						{ prefix: 'walk', rate: 10 },
+						{ prefix: 'run', rate: 15 },
+					].forEach(({ prefix, rate }) => {
+						sprite.anims.create({
+							key: `${prefix}-${direction}`,
+							repeat: -1,
+							frameRate: rate,
+							frames: this.anims.generateFrameNames('char', {
+								start: 1,
+								end: 8,
+								prefix: `${part}-walk-${direction}-`,
+							}),
+						});
 					});
 				});
-			});
 
-			// Adjust the effective size of the sprite
-			sprite.body.setSize(sprite.width / 6, sprite.height / 6, false);
-			sprite.body.setOffset(14, 26);
+				// Adjust the effective size of the sprite
+				sprite.body.setSize(sprite.width / 6, sprite.height / 6, false);
+				sprite.body.setOffset(14, 26);
+				sprite.setCollideWorldBounds(true);
 
-			return sprite;
-		});
+				return sprite;
+			})
+		);
 
-		const char = this.character[0];
-		char.setCollideWorldBounds(true);
-		this.physics.add.collider(char, collideLayer);
-		this.physics.add.collider(char, foragables, this.collideForagable);
-
-		// this.add.grid(32, 32, 2048, 2048, 32, 32, undefined, undefined, 300, 0.2);
+		// Collide player with map and foragables
+		this.physics.add.collider(this.character, collideLayer);
+		this.physics.add.collider(this.character, foragables, this.collideForagable);
 
 		// Follow camera to player and restrict to map bounds
-		this.physics.world.setBounds(0, 0, 840, 630, true, true, true, true);
 		this.cameras.main.setBounds(0, 0, 640, 630, true);
-		this.cameras.main.startFollow(char, true);
+		this.cameras.main.startFollow(this.character.getChildren()[0], true);
+
+		// Show debug grid
+		// this.add.grid(32, 32, 2048, 2048, 32, 32, undefined, undefined, 300, 0.2);
 	}
 
 	update(/*time: number, delta: number*/) {
 		if (!this.cursors || !this.character) {
 			return;
 		}
-
-		// Input readings indexes
-		const left = 0;
-		const right = 1;
-		const up = 2;
-		const down = 3;
-		const shift = 4;
-		const space = 5;
 
 		// Arrow keys
 		const keysDown = [
@@ -151,8 +155,8 @@ export default class Game extends Phaser.Scene {
 		let yVelocity = 0;
 
 		// If were in a hurry, run 50% faster
-		const hurry = keysDown[shift] || padDirections[shift];
-		const speed = hurry ? 150 : 100;
+		const inAHurry = keysDown[shift] || padDirections[shift];
+		const speed = inAHurry ? 200 : 150;
 
 		// Left/right movement
 		if (keysDown[left] || padDirections[left]) {
@@ -176,39 +180,24 @@ export default class Game extends Phaser.Scene {
 			yVelocity *= 0.7;
 		}
 
+		// Collect foragables
 		if ((keysDown[space] || padDirections[space]) && this.activeForagable) {
 			const foragable = this.activeForagable;
 			this.activeForagable = null;
 			foragable.destroy(true);
 		}
 
-		// If we're moving
+		// If we're to be moving
 		const direction = this.charDirectionRight ? 'right' : 'left';
 		if (xVelocity !== 0 || yVelocity !== 0) {
 			// Play the correct walking animation
-			this.character.forEach((part) => {
-				const currentFrame = part.anims.currentFrame.index;
-				part.anims.play(
-					{
-						key: `${hurry ? 'run' : 'walk'}-${direction}`,
-						startFrame: currentFrame < 8 ? currentFrame : 1,
-					},
-					true
-				);
-			});
+			this.character.playAnimation(`${inAHurry ? 'run' : 'walk'}-${direction}`, '1');
 		} else {
 			// Otherwise reset to standing the direction we were moving
-			this.character.forEach((part) => {
-				part.anims.play(`stand-${direction}`, true);
-			});
+			this.character.playAnimation(`stand-${direction}`);
 		}
 
-		const char = this.character[0];
-		char.setVelocity(xVelocity, yVelocity);
-		this.character.forEach((part, i) => {
-			if (i === 0) return;
-			part.setX(char.x);
-			part.setY(char.y);
-		});
+		// Set velocity
+		this.character.setVelocity(xVelocity, yVelocity);
 	}
 }
