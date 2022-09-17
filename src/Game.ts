@@ -1,21 +1,34 @@
 const output = document.getElementById('gamepad')!;
+
+const cellSize = 32;
+const initialPlayerPos = { x: 3, y: 3 };
+const initialForagableDistance = 4;
+const initialForagableCount = 20;
+
+// Input configuration
+type AcceptedKeys = 'W' | 'A' | 'S' | 'D' | 'SHIFT' | 'TAB' | 'SPACE';
+type KeyConfig = Record<AcceptedKeys, { isDown: boolean }>;
+
+const left = 0,
+	right = 1,
+	up = 2,
+	down = 3,
+	shift = 4,
+	space = 5,
+	tab = 6;
 const stickDeadZone = 0.2;
 
+// Parts of the character
+const charParts = ['char', 'hair', 'shirt', 'pants', 'shoes'];
+
 function gridPos(i: number) {
-	return i * 32 + 16;
+	return i * cellSize + 16;
 }
 
-// Input readings indexes
-const left = 0;
-const right = 1;
-const up = 2;
-const down = 3;
-const shift = 4;
-const space = 5;
-
 export default class Game extends Phaser.Scene {
-	private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 	private character!: Phaser.Physics.Arcade.Group;
+	private keys!: KeyConfig;
+
 	private charDirectionRight: boolean; // Currently facing right?
 	private activeForagable: Phaser.Types.Physics.Arcade.GameObjectWithBody | null = null;
 
@@ -25,7 +38,7 @@ export default class Game extends Phaser.Scene {
 	}
 
 	preload() {
-		this.cursors = this.input.keyboard.createCursorKeys();
+		this.keys = <KeyConfig>this.input.keyboard.addKeys('W,A,S,D,SHIFT,TAB,SPACE');
 	}
 
 	collideForagable: ArcadePhysicsCallback = (a, b) => {
@@ -41,33 +54,59 @@ export default class Game extends Phaser.Scene {
 		// Add all layers to the scene
 		const layers = map.getTileLayerNames().map((name) => {
 			const layer = map.createLayer(name, tileset);
+
 			// Find the collision layer
 			if (layer.layer.name === 'Collision') {
 				collideLayer = layer.setCollisionBetween(0, 2000);
 				layer.setVisible(false);
 			}
+
 			return layer;
 		});
 
-		const foragables = [
-			this.physics.add.sprite(gridPos(7), gridPos(4), 'forage', 0),
-			this.physics.add.sprite(gridPos(17), gridPos(1), 'forage', 1),
-			this.physics.add.sprite(gridPos(1), gridPos(18), 'forage', 2),
-			this.physics.add.sprite(gridPos(15), gridPos(17), 'forage', 3),
-		];
-		foragables.forEach((sprite, i) => {
-			sprite.setName(`foragable-${i}`);
-			sprite.setImmovable(true);
-			sprite.setScale(2);
-		});
+		const takenPositions = new Set();
+		const foragables: Phaser.Types.Physics.Arcade.SpriteWithStaticBody[] = [];
+		for (var i = 0; i < initialForagableCount; i++) {
+			// Find a random position on the map that isn't on the collide layer or near the player
+			let position;
+			let positionString;
+			let distanceToChar;
+			do {
+				position = {
+					x: Math.round(Math.random() * map.width),
+					y: Math.round(Math.random() * map.height),
+				};
+				positionString = `${position.x},${position.y}`;
+				distanceToChar =
+					Math.abs(initialPlayerPos.x - position.x) +
+					Math.abs(initialPlayerPos.y - position.y);
+			} while (
+				!!collideLayer.getTileAt(position.x, position.y) ||
+				takenPositions.has(positionString) ||
+				distanceToChar < initialForagableDistance
+			);
+
+			takenPositions.add(positionString);
+			const foragable = this.physics.add.staticSprite(
+				gridPos(position.x),
+				gridPos(position.y),
+				'forage',
+				Math.round(Math.random() * 5)
+			);
+			foragable.setName(`foragable-${i}`);
+			foragable.setScale(2);
+			foragable.body.setSize(22, 22, false);
+			foragable.body.setOffset(-2, -2);
+
+			foragables.push(foragable);
+		}
 
 		// Create character from spritesheet
-		const charParts = ['char', 'hair', 'shirt', 'pants', 'shoes'];
 		this.character = this.physics.add.group(
 			charParts.map((part) => {
 				const sprite = this.physics.add.sprite(
-					gridPos(7),
-					gridPos(7),
+					gridPos(initialPlayerPos.x),
+					gridPos(initialPlayerPos.y),
 					'char',
 					`${part}-walk-right-1`
 				);
@@ -101,8 +140,8 @@ export default class Game extends Phaser.Scene {
 				});
 
 				// Adjust the effective size of the sprite
-				sprite.body.setSize(sprite.width / 6, sprite.height / 6, false);
-				sprite.body.setOffset(14, 26);
+				sprite.body.setSize(sprite.width / 5, sprite.height / 6, false);
+				sprite.body.setOffset(13, 26);
 				sprite.setCollideWorldBounds(true);
 
 				return sprite;
@@ -114,26 +153,38 @@ export default class Game extends Phaser.Scene {
 		this.physics.add.collider(this.character, foragables, this.collideForagable);
 
 		// Follow camera to player and restrict to map bounds
-		this.cameras.main.setBounds(0, 0, 640, 630, true);
+		this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true);
 		this.cameras.main.startFollow(this.character.getChildren()[0], true);
 
 		// Show debug grid
-		// this.add.grid(32, 32, 2048, 2048, 32, 32, undefined, undefined, 300, 0.2);
+		// this.add.grid(
+		// 	0,
+		// 	0,
+		// 	cellSize * map.width * 2,
+		// 	cellSize * map.height * 2,
+		// 	cellSize,
+		// 	cellSize,
+		// 	undefined,
+		// 	undefined,
+		// 	300,
+		// 	0.2
+		// );
 	}
 
 	update(/*time: number, delta: number*/) {
-		if (!this.cursors || !this.character) {
+		if (!this.keys || !this.character) {
 			return;
 		}
 
 		// Arrow keys
 		const keysDown = [
-			this.cursors.left?.isDown,
-			this.cursors.right?.isDown,
-			this.cursors.up?.isDown,
-			this.cursors.down?.isDown,
-			this.cursors.shift?.isDown,
-			this.cursors.space?.isDown,
+			this.keys.A?.isDown,
+			this.keys.D?.isDown,
+			this.keys.W?.isDown,
+			this.keys.S?.isDown,
+			this.keys.SHIFT?.isDown,
+			this.keys.SPACE?.isDown,
+			this.keys.TAB?.isDown,
 		];
 
 		// Gamepad
@@ -147,6 +198,7 @@ export default class Game extends Phaser.Scene {
 				padDirections[down] = pad.leftStick.y > stickDeadZone;
 				padDirections[shift] = pad.R2 > 0;
 				padDirections[space] = pad.A;
+				padDirections[tab] = pad.Y;
 			}
 		}
 
