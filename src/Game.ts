@@ -68,6 +68,13 @@ export default class Game extends Phaser.Scene {
 			return layer;
 		});
 
+		const signsLayer = map.getObjectLayer('sign');
+		const signs = this.add.group(
+			signsLayer.objects.map((o) => {
+				return this.physics.add.staticImage(o.x! + 16, o.y! - 16, 'tiles', o.gid! - 1);
+			})
+		);
+
 		const takenPositions = new Set();
 		const foragables: Phaser.Types.Physics.Arcade.SpriteWithStaticBody[] = [];
 		for (var i = 0; i < initialForagableCount; i++) {
@@ -157,24 +164,28 @@ export default class Game extends Phaser.Scene {
 		// Collide player with map and foragables
 		this.physics.add.collider(this.character, collideLayer);
 		this.physics.add.collider(this.character, foragables, this.collideForagable);
+		this.physics.add.collider(this.character, signs, this.collideSign);
 
 		// Follow camera to player and restrict to map bounds
 		this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true);
 		this.cameras.main.startFollow(this.character.getChildren()[0], true);
 
 		// Show debug grid
-		// this.add.grid(
-		// 	0,
-		// 	0,
-		// 	cellSize * map.width * 2,
-		// 	cellSize * map.height * 2,
-		// 	cellSize,
-		// 	cellSize,
-		// 	undefined,
-		// 	undefined,
-		// 	300,
-		// 	0.2
-		// );
+		const shouldAddGrid = false;
+		if (shouldAddGrid) {
+			this.add.grid(
+				0,
+				0,
+				cellSize * map.width * 2,
+				cellSize * map.height * 2,
+				cellSize,
+				cellSize,
+				undefined,
+				undefined,
+				300,
+				0.2
+			);
+		}
 	}
 
 	update(/*time: number, delta: number*/) {
