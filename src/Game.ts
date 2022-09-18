@@ -2,7 +2,7 @@ const output = document.getElementById('gamepad')!;
 
 const cellSize = 32;
 const initialPlayerPos = { x: 3, y: 3 };
-const initialForagableDistance = 4;
+const initialForagableDistance = 5;
 const initialForagableCount = 20;
 
 // Input configuration
@@ -59,6 +59,10 @@ export default class Game extends Phaser.Scene {
 			if (layer.layer.name === 'Collision') {
 				collideLayer = layer.setCollisionBetween(0, 2000);
 				layer.setVisible(false);
+			}
+
+			if (layer.layer.name.startsWith('oc')) {
+				layer.setDepth(3);
 			}
 
 			return layer;
@@ -141,12 +145,14 @@ export default class Game extends Phaser.Scene {
 
 				// Adjust the effective size of the sprite
 				sprite.body.setSize(sprite.width / 5, sprite.height / 6, false);
-				sprite.body.setOffset(13, 26);
+				sprite.body.setOffset(13, 27);
 				sprite.setCollideWorldBounds(true);
 
 				return sprite;
 			})
 		);
+
+		this.character.setDepth(1);
 
 		// Collide player with map and foragables
 		this.physics.add.collider(this.character, collideLayer);
