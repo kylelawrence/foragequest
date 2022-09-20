@@ -14,16 +14,16 @@
         },
         "testmap.tmx": {
             "expandedGroupLayers": [
+                15,
                 10,
                 11,
-                6,
-                15
+                6
             ],
             "scale": 0.8807291666666667,
-            "selectedLayer": 0,
+            "selectedLayer": 7,
             "viewCenter": {
-                "x": 656.274393849793,
-                "y": 450.1951507983441
+                "x": 460.98166765227677,
+                "y": 422.94500295683025
             }
         },
         "testmap.tmx#Serene_Village_32x32": {

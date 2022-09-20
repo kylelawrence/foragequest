@@ -1,28 +1,31 @@
+import { LEFT } from 'phaser';
+
 const output = document.getElementById('gamepad')!;
 
 const cellSize = 32;
 const initialPlayerPos = { x: 3, y: 4 };
 const initialForagableDistance = 5;
 const initialForagableCount = 20;
+const spriteOffset = 16;
 
 // Input configuration
 type AcceptedKeys = 'W' | 'A' | 'S' | 'D' | 'SHIFT' | 'TAB' | 'SPACE';
 type KeyConfig = Record<AcceptedKeys, { isDown: boolean }>;
 
-const left = 0,
+const stickDeadZone = 0.2;
+const left = 0, // Key indexes
 	right = 1,
 	up = 2,
 	down = 3,
 	shift = 4,
 	space = 5,
 	tab = 6;
-const stickDeadZone = 0.2;
 
 // Parts of the character
 const charParts = ['char', 'hair', 'shirt', 'pants', 'shoes'];
 
 function gridPos(i: number) {
-	return i * cellSize + 16;
+	return i * cellSize;
 }
 
 export default class Game extends Phaser.Scene {
@@ -32,6 +35,7 @@ export default class Game extends Phaser.Scene {
 	private charDirectionRight: boolean; // Currently facing right?
 	private foragables: Map<string, Phaser.Types.Physics.Arcade.SpriteWithStaticBody> = new Map();
 	private targetPos: { x: number; y: number } = { x: 3, y: 5 };
+	private inventory: Phaser.GameObjects.Sprite[] = [];
 
 	constructor() {
 		super('game');
@@ -54,8 +58,7 @@ export default class Game extends Phaser.Scene {
 
 			// Find the collision layer
 			if (layer.layer.name === 'Collision') {
-				collideLayer = layer.setCollisionBetween(0, 2000);
-				layer.setVisible(false);
+				collideLayer = layer.setCollisionBetween(0, 2000).setVisible(false);
 			}
 
 			if (layer.layer.name.startsWith('oc')) {
@@ -67,16 +70,17 @@ export default class Game extends Phaser.Scene {
 
 		// Generate sign objects
 		const signsLayer = map.getObjectLayer('sign');
-		const signs = signsLayer.objects.map((o) => {
-			const sign = this.physics.add.staticImage(o.x! + 16, o.y! - 16, 'tiles', o.gid! - 1);
-			sign.setName('sign');
-			return sign;
-		});
+		const signs = signsLayer.objects.map((o) =>
+			this.physics.add.staticImage(o.x! + 16, o.y! - 16, 'tiles', o.gid! - 1).setName('sign')
+		);
 
 		// Spawn foragables
 		const takenPositions = new Set();
-		for (var i = 0; i < initialForagableCount; i++) {
-			// Find a random position on the map that isn't on the collide layer or near the player
+		for (let i = 0; i < initialForagableCount; i++) {
+			// Find a random position on the map that isn't:
+			// On the collide layer
+			// On the same spot as another foragable
+			// Near the player starting position
 			let position;
 			let positionString;
 			let distanceToChar;
@@ -96,16 +100,19 @@ export default class Game extends Phaser.Scene {
 			);
 
 			takenPositions.add(positionString);
-			const foragable = this.physics.add.staticSprite(
-				gridPos(position.x),
-				gridPos(position.y),
-				'forage',
-				Math.round(Math.random() * 5)
-			);
-			foragable.setName(`foragable-${i}`);
-			foragable.setScale(2);
-			foragable.body.setSize(22, 22, false);
-			foragable.body.setOffset(-2, -2);
+			const type = Math.round(Math.random() * 5);
+			const foragable = this.physics.add
+				.staticSprite(
+					gridPos(position.x) + spriteOffset,
+					gridPos(position.y) + spriteOffset,
+					'forage',
+					type
+				)
+				.setData('type', type)
+				.setName(`foragable-${i}`)
+				.setScale(2)
+				.setOffset(-2, -2)
+				.setBodySize(22, 22, false);
 
 			this.foragables.set(positionString, foragable);
 		}
@@ -113,15 +120,18 @@ export default class Game extends Phaser.Scene {
 		// Create character from spritesheet
 		this.character = this.physics.add.group(
 			charParts.map((part) => {
-				const sprite = this.physics.add.sprite(
-					gridPos(initialPlayerPos.x),
-					gridPos(initialPlayerPos.y),
-					'char',
-					`${part}-walk-right-1`
-				);
-				sprite.setName(`char-${part}`);
-				sprite.setScale(2);
-				sprite.setOrigin(0.5, 1);
+				const sprite = this.physics.add
+					.sprite(
+						gridPos(initialPlayerPos.x) + spriteOffset,
+						gridPos(initialPlayerPos.y) + spriteOffset,
+						'char',
+						`${part}-walk-right-1`
+					)
+					.setName(`char-${part}`)
+					.setScale(2)
+					.setOrigin(0.5, 1)
+					.setCollideWorldBounds(true)
+					.setDepth(1);
 
 				// Make animations for each direction
 				['right', 'left'].forEach((direction) => {
@@ -150,26 +160,35 @@ export default class Game extends Phaser.Scene {
 				});
 
 				// Adjust the effective size of the sprite
-				sprite.body.setSize(sprite.width / 5, sprite.height / 6, false);
-				sprite.body.setOffset(13, 27);
-				sprite.setCollideWorldBounds(true);
-				sprite.setDepth(1);
+				sprite.body.setSize(sprite.width / 5, sprite.height / 6, false).setOffset(13, 27);
 
 				return sprite;
 			})
 		);
 
 		// Add target rectangle
-		this.target = this.add.rectangle(gridPos(3), gridPos(5), cellSize, cellSize, undefined);
-		this.target.setStrokeStyle(2, 0xff0000, 0.6);
+		this.target = this.add
+			.rectangle(gridPos(3), gridPos(5), cellSize, cellSize, undefined)
+			.setOrigin(0)
+			.setStrokeStyle(2, 0xff0000, 0.6);
 
 		// Collide player with map, foragables, and interactables
 		this.physics.add.collider(this.character, collideLayer);
 		this.physics.add.collider(this.character, Array.from(this.foragables.values()));
 
 		// Follow camera to player and restrict to map bounds
-		this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true);
-		this.cameras.main.startFollow(this.character.getChildren()[0], true);
+		this.cameras.main
+			.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true)
+			.startFollow(this.character.getChildren()[0], true);
+
+		// Create inventory
+		for (let i = 0; i < 6; i++) {
+			this.add
+				.rectangle(gridPos(i), 0, cellSize, cellSize, 0xffffff, 0.5)
+				.setStrokeStyle(2, 0xffffff)
+				.setOrigin(0, 0)
+				.setScrollFactor(0);
+		}
 
 		// Show debug grid
 		const shouldAddGrid = false;
@@ -183,9 +202,19 @@ export default class Game extends Phaser.Scene {
 				cellSize,
 				undefined,
 				undefined,
-				300,
+				0x0000bb,
 				0.2
 			);
+			for (let x = 0; x < map.width; x++) {
+				for (let y = 0; y < map.height; y++) {
+					this.add.text(gridPos(x) - 12, gridPos(y) - 12, `${x},${y}`, {
+						align: 'left',
+						fontSize: '8px',
+						fontFamily: 'sans-serif',
+						color: '#000',
+					});
+				}
+			}
 		}
 	}
 
@@ -252,10 +281,24 @@ export default class Game extends Phaser.Scene {
 
 		// Collect foragables
 		if (keysDown[space] || padDirections[space]) {
+			const inventoryIndex = this.inventory.length;
+			if (inventoryIndex >= 6) return;
 			const targetPosString = `${this.targetPos.x},${this.targetPos.y}`;
 			const foragable = this.foragables.get(targetPosString);
 			if (foragable) {
+				const type = foragable.getData('type');
+				this.foragables.delete(targetPosString);
 				foragable.destroy();
+
+				this.inventory.push(
+					this.add
+						.sprite(gridPos(inventoryIndex), gridPos(0), 'forage', type)
+						.setData('type', type)
+						.setName(`foragable-${type}`)
+						.setScale(2)
+						.setOrigin(0)
+						.setScrollFactor(0)
+				);
 			}
 		}
 
