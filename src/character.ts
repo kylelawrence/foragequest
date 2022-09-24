@@ -2,6 +2,7 @@ import { Scene } from 'phaser';
 import { cellSize, charParts, gridPos, initialPlayerPos, spriteOffset } from './utils';
 
 export type Character = Phaser.Physics.Arcade.Group;
+export type CharPart = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 
 export function createCharacter(scene: Scene) {
 	// Create character from spritesheet

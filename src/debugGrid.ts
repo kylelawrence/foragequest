@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 import { cellSize, gridPos } from './utils';
 
-export function addDebugGrid(scene: Scene, width: number, height: number) {
+export function createDebugGrid(scene: Scene, width: number, height: number) {
 	scene.add.grid(
 		0,
 		0,

@@ -1,8 +1,10 @@
-import { Character, createCharacter } from './character';
-import { addDebugGrid } from './debugGrid';
+import { Character, CharPart, createCharacter } from './character';
+import { createDebugGrid } from './debugGrid';
 import { createForagables, ForagableMap } from './foragable';
+import { createInventory } from './inventory';
 import { createMap } from './map';
-import { button, cellSize, gridPos, key, KeyConfig, stickDeadZone } from './utils';
+import { createTarget } from './target';
+import { button, gridPos, key, KeyConfig, stickDeadZone } from './utils';
 
 const output = document.getElementById('gamepad')!;
 
@@ -28,15 +30,11 @@ export default class Game extends Phaser.Scene {
 		const { map, collideLayer } = createMap(this);
 
 		this.foragables = createForagables(this, map, collideLayer);
-
 		this.character = createCharacter(this);
+		this.target = createTarget(this);
+		createInventory(this);
 
-		// Add target rectangle
-		this.target = this.add
-			.rectangle(gridPos(3), gridPos(5), cellSize, cellSize, undefined)
-			.setOrigin(0)
-			.setVisible(false)
-			.setStrokeStyle(2, 0xff0000, 0.6);
+		// createDebugGrid(this, map.width, map.height);
 
 		// Collide player with map, foragables, and interactables
 		this.physics.add.collider(this.character, collideLayer);
@@ -46,15 +44,6 @@ export default class Game extends Phaser.Scene {
 		this.cameras.main
 			.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true)
 			.startFollow(this.character.getChildren()[0], true);
-
-		// Create inventory
-		for (let i = 0; i < 6; i++) {
-			this.add
-				.rectangle(gridPos(i), 0, cellSize, cellSize, 0xffffff, 0.5)
-				.setStrokeStyle(2, 0xffffff)
-				.setOrigin(0, 0)
-				.setScrollFactor(0);
-		}
 
 		// Foragable collection on space / A
 		this.input.keyboard.on('keydown-SPACE', () => {
@@ -66,8 +55,6 @@ export default class Game extends Phaser.Scene {
 				this.collectForagable();
 			}
 		});
-
-		// addDebugGrid(this, map.width, map.height);
 	}
 
 	update(/*time: number, delta: number*/) {
@@ -141,8 +128,7 @@ export default class Game extends Phaser.Scene {
 		this.character.setVelocity(xVelocity, yVelocity);
 
 		// Move target square
-		const char: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody =
-			this.character.getFirstAlive();
+		const char: CharPart = this.character.getFirstAlive();
 		const charX = Math.floor(char.x / 32);
 		const charY = Math.floor((char.y - 6) / 32);
 
@@ -167,22 +153,23 @@ export default class Game extends Phaser.Scene {
 	collectForagable() {
 		const inventoryIndex = this.inventory.length;
 		if (inventoryIndex >= 6) return;
+
 		const targetPosString = `${this.targetPos.x},${this.targetPos.y}`;
 		const foragable = this.foragables.get(targetPosString);
-		if (foragable) {
-			const type = foragable.getData('type');
-			this.foragables.delete(targetPosString);
-			foragable.destroy();
+		if (!foragable) return;
 
-			this.inventory.push(
-				this.add
-					.sprite(gridPos(inventoryIndex), gridPos(0), 'forage', type)
-					.setData('type', type)
-					.setName(`foragable-${type}`)
-					.setScale(2)
-					.setOrigin(0)
-					.setScrollFactor(0)
-			);
-		}
+		const type = foragable.getData('type');
+		this.foragables.delete(targetPosString);
+		foragable.destroy();
+
+		this.inventory.push(
+			this.add
+				.sprite(gridPos(inventoryIndex), gridPos(0), 'forage', type)
+				.setData('type', type)
+				.setName(`foragable-${type}`)
+				.setScale(2)
+				.setOrigin(0)
+				.setScrollFactor(0)
+		);
 	}
 }
