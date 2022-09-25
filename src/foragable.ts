@@ -7,14 +7,16 @@ import {
 	spriteOffset,
 } from './utils';
 
-export type ForagableMap = Map<string, Phaser.Types.Physics.Arcade.SpriteWithStaticBody>;
+type ArcadeSprite = Phaser.Types.Physics.Arcade.SpriteWithStaticBody;
+export type ForagableMap = Map<string, ArcadeSprite>;
 
 export function createForagables(
 	scene: Scene,
 	map: Tilemaps.Tilemap,
 	collideLayer: Tilemaps.TilemapLayer
 ) {
-	const foragables: Map<string, Types.Physics.Arcade.SpriteWithStaticBody> = new Map();
+	const foragableMap: Map<string, ArcadeSprite> = new Map();
+	const foragableTypes: number[] = [];
 	for (let i = 0; i < initialForagableCount; i++) {
 		// Find a random position on the map that isn't:
 		// On the collide layer
@@ -34,11 +36,12 @@ export function createForagables(
 				Math.abs(initialPlayerPos.y - position.y);
 		} while (
 			!!collideLayer.getTileAt(position.x, position.y) ||
-			foragables.has(positionString) ||
+			foragableMap.has(positionString) ||
 			distanceToChar < initialForagableDistance
 		);
 
 		const type = Math.round(Math.random() * 5);
+		foragableTypes.push(type);
 		const foragable = scene.physics.add
 			.staticSprite(
 				gridPos(position.x) + spriteOffset,
@@ -52,8 +55,8 @@ export function createForagables(
 			.setOffset(-2, -2)
 			.setBodySize(22, 22, false);
 
-		foragables.set(positionString, foragable);
+		foragableMap.set(positionString, foragable);
 	}
 
-	return foragables;
+	return { foragableMap, foragableTypes };
 }

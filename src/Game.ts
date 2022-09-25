@@ -3,8 +3,9 @@ import { createDebugGrid } from './debugGrid';
 import { createForagables, ForagableMap } from './foragable';
 import { createInventory } from './inventory';
 import { createMap } from './map';
+import { createQuestChoose } from './questChoose';
 import { createTarget } from './target';
-import { button, gridPos, key, KeyConfig, stickDeadZone } from './utils';
+import { button, gridPos, key, KeyConfig, questSize, stickDeadZone } from './utils';
 
 const output = document.getElementById('gamepad')!;
 
@@ -13,9 +14,12 @@ export default class Game extends Phaser.Scene {
 	private charDirectionRight: boolean; // Currently facing right?
 	private inventory: Phaser.GameObjects.Sprite[] = [];
 	private target!: Phaser.GameObjects.Rectangle;
-	private targetPos: { x: number; y: number } = { x: 3, y: 5 };
+	private targetPos = { x: 3, y: 5 };
 	private foragables: ForagableMap = new Map();
 	private keys!: KeyConfig;
+	private questChoiceOpen = false;
+	private selectedQuest: number[] | null = null;
+	private inventoryBox!: Phaser.GameObjects.Group;
 
 	constructor() {
 		super('game');
@@ -27,12 +31,15 @@ export default class Game extends Phaser.Scene {
 	}
 
 	create() {
-		const { map, collideLayer } = createMap(this);
+		const { map, collideLayer, signPositions } = createMap(this);
 
-		this.foragables = createForagables(this, map, collideLayer);
+		const { foragableMap, foragableTypes } = createForagables(this, map, collideLayer);
+		this.foragables = foragableMap;
 		this.character = createCharacter(this);
 		this.target = createTarget(this);
-		createInventory(this);
+		this.inventoryBox = createInventory(this);
+		const { defaultQuest, selectQuestDown, selectQuestUp, openQuestChoose, closeQuestChoose } =
+			createQuestChoose(this, foragableTypes);
 
 		// createDebugGrid(this, map.width, map.height);
 
@@ -45,20 +52,88 @@ export default class Game extends Phaser.Scene {
 			.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true)
 			.startFollow(this.character.getChildren()[0], true);
 
-		// Foragable collection on space / A
+		const doAction = () => {
+			// Choose a quest
+			if (this.questChoiceOpen) {
+				closeQuestChoose();
+				this.inventoryBox.setVisible(true);
+				this.questChoiceOpen = false;
+
+				this.add
+					.rectangle(0, 0, 165, 34, 0x222222, 1)
+					.setStrokeStyle(2, 0xffffff, 1)
+					.setOrigin(0, 0)
+					.setDepth(10)
+					.setScrollFactor(0);
+				this.selectedQuest?.forEach((type, i) => {
+					this.add
+						.sprite(gridPos(i), gridPos(0), 'forage', type)
+						.setData('type', type)
+						.setName(`foragable-${type}`)
+						.setScale(2)
+						.setOrigin(0)
+						.setScrollFactor(0)
+						.setDepth(10);
+				});
+				return;
+			}
+
+			// Collect foragable
+			if (this.selectedQuest) {
+				this.collectForagable();
+				return;
+			}
+
+			// Open quest dialog when touching sign
+			const targetPosString = `${this.targetPos.x},${this.targetPos.y}`;
+			if (signPositions.has(targetPosString)) {
+				openQuestChoose();
+				this.character.playAnimation(`stand-${this.charDirectionRight ? 'right' : 'left'}`);
+				this.questChoiceOpen = true;
+				this.selectedQuest = defaultQuest;
+				return;
+			}
+		};
+
 		this.input.keyboard.on('keydown-SPACE', () => {
-			this.collectForagable();
+			doAction();
+		});
+
+		this.input.keyboard.on('keydown-S', () => {
+			if (this.questChoiceOpen) {
+				this.selectedQuest = selectQuestDown();
+			}
+		});
+
+		this.input.keyboard.on('keydown-W', () => {
+			if (this.questChoiceOpen) {
+				this.selectedQuest = selectQuestUp();
+			}
 		});
 
 		this.input.gamepad.on('down', (_: any, b: Phaser.Input.Gamepad.Button) => {
-			if (b.index === button.a) {
-				this.collectForagable();
+			switch (b.index) {
+				case button.a:
+					doAction();
+					break;
+				case button.down:
+					if (this.questChoiceOpen) {
+						this.selectedQuest = selectQuestDown();
+					}
+					break;
+				case button.up:
+					if (this.questChoiceOpen) {
+						this.selectedQuest = selectQuestUp();
+					}
+					break;
+				default:
+					break;
 			}
 		});
 	}
 
 	update(/*time: number, delta: number*/) {
-		if (!this.keys || !this.character) {
+		if (!this.keys || !this.character || this.questChoiceOpen) {
 			return;
 		}
 
@@ -116,7 +191,7 @@ export default class Game extends Phaser.Scene {
 
 		// If we're to be moving
 		const direction = this.charDirectionRight ? 'right' : 'left';
-		if (xVelocity !== 0 || yVelocity !== 0) {
+		if (xVelocity || yVelocity) {
 			// Play the correct walking animation
 			this.character.playAnimation(`${inAHurry ? 'run' : 'walk'}-${direction}`, '1');
 		} else {
@@ -124,7 +199,7 @@ export default class Game extends Phaser.Scene {
 			this.character.playAnimation(`stand-${direction}`);
 		}
 
-		// Set velocity
+		// Set character velocity
 		this.character.setVelocity(xVelocity, yVelocity);
 
 		// Move target square
@@ -132,27 +207,18 @@ export default class Game extends Phaser.Scene {
 		const charX = Math.floor(char.x / 32);
 		const charY = Math.floor((char.y - 6) / 32);
 
-		if (xVelocity < 0) {
-			this.targetPos = { x: charX - 1, y: charY };
-		} else if (xVelocity > 0) {
-			this.targetPos = { x: charX + 1, y: charY };
+		if (xVelocity) {
+			this.targetPos = { x: charX + (xVelocity > 0 ? 1 : -1), y: charY };
+		} else if (yVelocity) {
+			this.targetPos = { x: charX, y: charY + (yVelocity > 0 ? 1 : -1) };
 		}
 
-		if (yVelocity < 0) {
-			this.targetPos = { x: charX, y: charY - 1 };
-		} else if (yVelocity > 0) {
-			this.targetPos = { x: charX, y: charY + 1 };
-		}
-
-		if (xVelocity || yVelocity) {
-			this.target.setPosition(gridPos(this.targetPos.x), gridPos(this.targetPos.y));
-			this.target.setVisible(true);
-		}
+		this.target.setPosition(gridPos(this.targetPos.x), gridPos(this.targetPos.y));
 	}
 
 	collectForagable() {
 		const inventoryIndex = this.inventory.length;
-		if (inventoryIndex >= 6) return;
+		if (inventoryIndex >= questSize) return;
 
 		const targetPosString = `${this.targetPos.x},${this.targetPos.y}`;
 		const foragable = this.foragables.get(targetPosString);
@@ -164,7 +230,7 @@ export default class Game extends Phaser.Scene {
 
 		this.inventory.push(
 			this.add
-				.sprite(gridPos(inventoryIndex), gridPos(0), 'forage', type)
+				.sprite(gridPos(inventoryIndex + 7) - 5, gridPos(12) + 10, 'forage', type)
 				.setData('type', type)
 				.setName(`foragable-${type}`)
 				.setScale(2)

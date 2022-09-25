@@ -3,6 +3,7 @@ export const initialPlayerPos = { x: 3, y: 4 };
 export const initialForagableDistance = 5;
 export const initialForagableCount = 20;
 export const spriteOffset = 16;
+export const questSize = 5;
 
 // Input configuration
 export type AcceptedKeys = 'W' | 'A' | 'S' | 'D' | 'SHIFT';

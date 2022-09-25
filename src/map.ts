@@ -22,13 +22,17 @@ export function createMap(scene: Scene) {
 	});
 
 	// Generate sign objects
-	const signsLayer = map.getObjectLayer('sign');
-	signsLayer.objects.map((o) =>
-		scene.add.image(o.x! + 16, o.y! - 16, 'tiles', o.gid! - 1).setName('sign')
-	);
+	const signPositions = new Set();
+	map.getObjectLayer('sign').objects.map((o) => {
+		const tileX = Math.floor((o.x! + 16) / 32);
+		const tileY = Math.floor((o.y! - 16) / 32);
+		const signPart = scene.add.image(o.x! + 16, o.y! - 16, 'tiles', o.gid! - 1).setName('sign');
+		signPositions.add(`${tileX},${tileY}`);
+	});
 
 	return {
 		map,
 		collideLayer,
+		signPositions,
 	};
 }
