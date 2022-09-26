@@ -20,6 +20,12 @@ export default class Game extends Phaser.Scene {
 	private questChoiceOpen = false;
 	private selectedQuest: number[] | null = null;
 	private inventoryBox!: Phaser.GameObjects.Group;
+	private houseDoor = Phaser.Geom.Rectangle.FromXY(
+		gridPos(3),
+		gridPos(2),
+		gridPos(4),
+		gridPos(3)
+	);
 
 	constructor() {
 		super('game');
@@ -214,6 +220,13 @@ export default class Game extends Phaser.Scene {
 		}
 
 		this.target.setPosition(gridPos(this.targetPos.x), gridPos(this.targetPos.y));
+
+		if (
+			this.selectedQuest &&
+			Phaser.Geom.Rectangle.Overlaps(char.getBounds(), this.houseDoor)
+		) {
+			console.log('ur dun kid');
+		}
 	}
 
 	collectForagable() {
