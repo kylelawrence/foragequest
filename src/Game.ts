@@ -4,6 +4,7 @@ import { createForagables, ForagableMap } from './foragable';
 import { createInventory } from './inventory';
 import { createMap } from './map';
 import { createQuestChoose } from './questChoose';
+import { createQuestOver } from './questOver';
 import { createTarget } from './target';
 import { button, gridPos, key, KeyConfig, questSize, stickDeadZone } from './utils';
 
@@ -11,7 +12,8 @@ const output = document.getElementById('gamepad')!;
 
 export default class Game extends Phaser.Scene {
 	private character!: Character;
-	private charDirectionRight: boolean; // Currently facing right?
+	private charDirectionRight!: boolean; // Currently facing right?
+	private collected: number[] = [];
 	private inventory: Phaser.GameObjects.Sprite[] = [];
 	private target!: Phaser.GameObjects.Rectangle;
 	private targetPos = { x: 3, y: 5 };
@@ -26,10 +28,11 @@ export default class Game extends Phaser.Scene {
 		gridPos(4),
 		gridPos(3)
 	);
+	private questOver: boolean = false;
+	private questStart!: number;
 
 	constructor() {
 		super('game');
-		this.charDirectionRight = true;
 	}
 
 	preload() {
@@ -37,6 +40,13 @@ export default class Game extends Phaser.Scene {
 	}
 
 	create() {
+		this.charDirectionRight = true;
+		this.collected = [];
+		this.inventory = [];
+		this.selectedQuest = null;
+		this.questChoiceOpen = false;
+		this.questOver = false;
+
 		const { map, collideLayer, signPositions } = createMap(this);
 
 		const { foragableMap, foragableTypes } = createForagables(this, map, collideLayer);
@@ -53,14 +63,22 @@ export default class Game extends Phaser.Scene {
 		this.physics.add.collider(this.character, collideLayer);
 		this.physics.add.collider(this.character, Array.from(this.foragables.values()));
 
+		// createQuestOver(this, [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], this.time.now - 12000);
+
 		// Follow camera to player and restrict to map bounds
 		this.cameras.main
 			.setBounds(0, 0, map.widthInPixels, map.heightInPixels, true)
 			.startFollow(this.character.getChildren()[0], true);
 
 		const doAction = () => {
+			if (this.questOver) {
+				this.scene.restart();
+				return;
+			}
+
 			// Choose a quest
 			if (this.questChoiceOpen) {
+				this.questStart = this.time.now;
 				closeQuestChoose();
 				this.inventoryBox.setVisible(true);
 				this.questChoiceOpen = false;
@@ -81,6 +99,8 @@ export default class Game extends Phaser.Scene {
 						.setScrollFactor(0)
 						.setDepth(10);
 				});
+
+				this.questStart = this.time.now;
 				return;
 			}
 
@@ -101,9 +121,7 @@ export default class Game extends Phaser.Scene {
 			}
 		};
 
-		this.input.keyboard.on('keydown-SPACE', () => {
-			doAction();
-		});
+		this.input.keyboard.on('keydown-SPACE', doAction);
 
 		this.input.keyboard.on('keydown-S', () => {
 			if (this.questChoiceOpen) {
@@ -139,7 +157,8 @@ export default class Game extends Phaser.Scene {
 	}
 
 	update(/*time: number, delta: number*/) {
-		if (!this.keys || !this.character || this.questChoiceOpen) {
+		if (!this.keys || !this.character || this.questChoiceOpen || this.questOver) {
+			output.innerHTML = `quest open: ${this.questChoiceOpen}<br>quest over: ${this.questOver}`;
 			return;
 		}
 
@@ -225,7 +244,9 @@ export default class Game extends Phaser.Scene {
 			this.selectedQuest &&
 			Phaser.Geom.Rectangle.Overlaps(char.getBounds(), this.houseDoor)
 		) {
-			console.log('ur dun kid');
+			this.questOver = true;
+			createQuestOver(this, this.collected, this.selectedQuest, this.questStart);
+			this.character.playAnimation(`stand-${this.charDirectionRight ? 'right' : 'left'}`);
 		}
 	}
 
@@ -238,6 +259,7 @@ export default class Game extends Phaser.Scene {
 		if (!foragable) return;
 
 		const type = foragable.getData('type');
+		this.collected.push(type);
 		this.foragables.delete(targetPosString);
 		foragable.destroy();
 
