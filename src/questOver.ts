@@ -1,7 +1,4 @@
 import { Scene, Display } from 'phaser';
-import { gridPos } from './utils';
-
-let selectedQuest = 0;
 
 export function createQuestOver(
 	scene: Scene,

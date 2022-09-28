@@ -158,7 +158,6 @@ export default class Game extends Phaser.Scene {
 
 	update(/*time: number, delta: number*/) {
 		if (!this.keys || !this.character || this.questChoiceOpen || this.questOver) {
-			output.innerHTML = `quest open: ${this.questChoiceOpen}<br>quest over: ${this.questOver}`;
 			return;
 		}
 

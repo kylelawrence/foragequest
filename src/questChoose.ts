@@ -1,5 +1,4 @@
 import { Scene, Display } from 'phaser';
-import { gridPos } from './utils';
 
 let selectedQuest = 0;
 
